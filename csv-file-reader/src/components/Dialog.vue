@@ -7,15 +7,27 @@
     />
     <v-dialog
       v-model="componentData.showDialog"
-      :width="componentProperties.width"
       :class="componentProperties.class"
+      :fullscreen="display.smAndDown.value"
     >
-      <slot />
+      <v-card v-if="display.smAndDown.value">
+        <v-toolbar dark color="transparent">
+          <v-spacer />
+          <v-btn icon dark @click="setShowDialog(false)">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-toolbar>
+        <v-card-text>
+          <slot />
+        </v-card-text>
+      </v-card>
+      <slot v-if="display.mdAndUp.value" />
     </v-dialog>
   </div>
 </template>
 <script setup lang="ts">
 import { reactive, defineProps, withDefaults, watch, defineEmits } from "vue";
+import { useVuetifyDisplay } from "@composables/useVuetifyDisplay";
 interface IDialogComponentProperties {
   modelValue?: boolean;
   width?: any;
@@ -25,7 +37,7 @@ interface IDialogComponentData {
   showDialog?: boolean;
 }
 interface IDialogComponentEvents {
-  (e: "update:modelValue", show: boolean): void;
+  (e: "update:modelValue", show?: boolean): void;
 }
 const componentProperties = withDefaults(
   defineProps<IDialogComponentProperties>(),
@@ -38,7 +50,7 @@ const componentData = reactive<IDialogComponentData>({
   showDialog: componentProperties.modelValue,
 });
 const emits = defineEmits<IDialogComponentEvents>();
-
+const display = useVuetifyDisplay();
 watch(
   () => componentProperties.modelValue,
   (value) => {

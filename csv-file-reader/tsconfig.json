@@ -17,6 +17,10 @@
       "@/*":            ["src/*"],
       "@components":    ["src/components"],
       "@components/*":  ["src/components/*"],
+      "@composables":   ["src/composables"],
+      "@composables/*": ["src/composables/*"],
+      "@store":         ["src/store"],
+      "@store/*":       ["src/store/*"],
     }
   },
   

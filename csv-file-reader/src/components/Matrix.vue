@@ -6,8 +6,17 @@
     <v-card>
       <v-card-title>Matrix Linear</v-card-title>
       <v-card-text>
-        <v-text-field v-model="componentData.result" label="Result" />
-        <v-btn @click.stop="uploadFile">Upload to Api - Matrix</v-btn>
+        <v-form ref="matrixForm" v-model="componentData.valid">
+          <v-select
+            :items="availableResultTypes"
+            v-model="componentData.result"
+            label="Result Type"
+          />
+          <v-card-actions>
+            <v-spacer />
+            <v-btn @click.stop="uploadFile">Upload to Api - Matrix</v-btn>
+          </v-card-actions>
+        </v-form>
       </v-card-text>
     </v-card>
   </Dialog>
@@ -37,14 +46,20 @@
 <script setup lang="ts">
 import axios from "axios";
 import {
+  ref,
   reactive,
   defineProps,
   withDefaults,
   watch,
   computed,
   nextTick,
+  onMounted,
 } from "vue";
-import { CsvEntity, FileUploaderModelValue, apiConfigurations } from "@/types";
+import {
+  FileUploaderModelValue,
+  apiConfigurations,
+  MatrixResultTypes,
+} from "@/types";
 
 import Dialog from "@/components/Dialog.vue";
 interface IRegressionLinearComponentProperties {
@@ -55,8 +70,10 @@ interface IRegressionLinearComponentData {
   showUploadDialog: boolean;
   showResultDialog: boolean;
   imageUrl?: string;
-  result?: string;
+  result?: MatrixResultTypes;
   error?: any;
+  valid: boolean;
+  isMounted: boolean;
 }
 const componentProperties = withDefaults(
   defineProps<IRegressionLinearComponentProperties>(),
@@ -66,9 +83,15 @@ const componentData = reactive<IRegressionLinearComponentData>({
   csvFile: componentProperties.modelValue,
   showResultDialog: false,
   showUploadDialog: false,
+  valid: false,
+  isMounted: false,
 });
+const newItemForm = ref();
 const imageUrl = computed(() => {
   return componentData.imageUrl;
+});
+const availableResultTypes = computed(() => {
+  return Object.values(MatrixResultTypes);
 });
 watch(
   () => componentProperties.modelValue,
@@ -105,4 +128,11 @@ async function uploadFile(show: Function, close: Function) {
   }
   await nextTick();
 }
+function validateForm() {
+  if (!componentData.isMounted) return;
+  newItemForm.value.validate();
+}
+onMounted(() => {
+  componentData.isMounted = true;
+});
 </script>

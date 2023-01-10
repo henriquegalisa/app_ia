@@ -1,106 +1,83 @@
 <template>
-  <!-- <v-container> -->
-  <v-row no-gutters>
-    <v-col class="text-center">
-      <Dialog>
-        <template v-slot:activator="{ show, close }">
-          <v-btn @click.stop="show">Preview CSV</v-btn>
-        </template>
-        <v-card>
-          <v-card-title>CSV FILE PREVIEW</v-card-title>
-          <v-card-text>
-            <v-table>
-              <thead>
-                <tr>
-                  <th
-                    class="text-left"
-                    v-for="(title, index) in componentData.headers"
-                    :key="`${title}-${index}`"
-                  >
-                    {{ title }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(item, index) in componentData.items" :key="item.id">
-                  <td v-for="(key, keyIndex) in Object.keys(item)">
-                    {{ item[key] }}
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
-          </v-card-text>
-        </v-card>
-      </Dialog>
-    </v-col>
-  </v-row>
-  <!-- </v-container> -->
+  <Dialog>
+    <template v-slot:activator="{ show, close }">
+      <v-btn @click.stop="show">Preview CSV</v-btn>
+    </template>
+    <v-card :elevation="display.smAndDown ? 0 : 1">
+      <v-card-title>CSV FILE PREVIEW({{ body.length }})</v-card-title>
+      <v-card-text>
+        <v-table>
+          <thead>
+            <tr>
+              <th
+                class="text-left"
+                v-for="(title, index) in headers"
+                :key="`${title}-${index}`"
+              >
+                {{ title }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, index) in body" :key="item.id">
+              <td v-for="(key, keyIndex) in Object.keys(item)">
+                {{ item[key] }}
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </v-card-text>
+    </v-card>
+  </Dialog>
 </template>
 <script setup lang="ts">
-import { reactive, onMounted, defineProps, withDefaults, watch } from "vue";
-import { CsvEntity, csvContants, FileUploaderModelValue } from "@/types";
+import { reactive, computed, defineProps, withDefaults } from "vue";
+import { FileUploaderModelValue, ProcessedCsvFile, CsvEntity } from "@/types";
+import { useVuetifyDisplay } from "@composables/useVuetifyDisplay";
+import { useFileStore } from "@store/useFileStore";
 import { v4 as uuidv4 } from "uuid";
 import Dialog from "@/components/Dialog.vue";
+
 interface ICsvFilePreviewComponentProperties {
-  modelValue?: FileUploaderModelValue;
+  modelValue?: ProcessedCsvFile;
+  file?: FileUploaderModelValue;
 }
 interface ICsvFilePreviewComponentData {
-  csvFile?: FileUploaderModelValue;
-  items: CsvEntity[];
-  headers: string[];
+  existingIds: string[];
 }
+interface CsvEntityWithId extends CsvEntity {
+  id: string;
+}
+const fileStore = useFileStore();
 const componentProperties = withDefaults(
   defineProps<ICsvFilePreviewComponentProperties>(),
   {}
 );
 const componentData = reactive<ICsvFilePreviewComponentData>({
-  csvFile: componentProperties.modelValue,
-  items: [],
-  headers: [],
+  existingIds: [],
 });
 
-watch(
-  () => componentProperties.modelValue,
-  (file) => {
-    componentData.csvFile = file;
-    if (file) parseCsvFile(file);
-    else clearData();
-  },
-  {
-    immediate: true,
-    deep: true,
-  }
-);
-function clearData() {
-  componentData.items = [];
-  componentData.headers = [];
+const display = useVuetifyDisplay();
+const headers = computed<string[]>(() => {
+  const persistedHeaders = componentProperties.modelValue?.headers ?? [];
+  if (persistedHeaders.length === 0) return [];
+  return [...persistedHeaders];
+});
+function generateNewValidId() {
+  if (!componentData.existingIds) return uuidv4();
+  let newId = uuidv4();
+  while (componentData.existingIds.includes(newId)) newId = uuidv4();
+
+  return newId;
 }
-async function parseCsvFile(file: FileUploaderModelValue) {
-  clearData();
-  if (!file) return;
-  //if (file.type !== "text/csv") return;
-  const csvFullContent = await file.text();
-  const lines = csvFullContent.split(csvContants.lineBreak);
-  if (!lines || lines.length === 0) return;
-  await parseHeaders(lines[0]);
-  await parseBody(lines.slice(1));
-}
-async function parseHeaders(headerLine: string) {
-  const headers = headerLine.split(csvContants.cellSplit);
-  componentData.headers = ["id", ...(headers ?? [])];
-}
-async function parseBody(bodyLines: string[]) {
-  const items = bodyLines
-    .map((line) => line.split(csvContants.cellSplit))
-    .map((item) => {
-      const entity: CsvEntity = {
-        id: uuidv4(),
-      };
-      componentData.headers.slice(1).forEach((header, index) => {
-        entity[header] = item[index];
-      });
-      return entity;
-    });
-  componentData.items = items ?? [];
-}
+const body = computed<CsvEntityWithId[]>(() => {
+  const persistedBody = componentProperties.modelValue?.body ?? [];
+  if (persistedBody.length === 0) return [];
+  return persistedBody.map((item) => {
+    return {
+      id: generateNewValidId(),
+      ...item,
+    };
+  });
+});
 </script>
